@@ -29,8 +29,27 @@ function openProject(p,i){
  document.querySelector('#detail-title').textContent=p.title;
  document.querySelector('#detail-desc').textContent=p.desc;
  const images=document.querySelector('#detail-images');images.className='detail-images';images.replaceChildren();
- for(let n=1;n<=p.count;n++){const img=document.createElement('img');img.src=`assets/${p.id}${n}.webp`;img.alt=`${p.title}作品展示 · 第${n}页`;img.loading=n===1?'eager':'lazy';images.append(img);}
- dialog.showModal();dialog.scrollTop=0;
+ // Mount the gallery in an open dialog before starting requests. Native lazy
+ // loading inside a hidden dialog can leave pages unrequested in mobile WebViews.
+ if(!dialog.open)dialog.showModal();
+ dialog.scrollTop=0;
+ for(let n=1;n<=p.count;n++){
+  const source=`assets/project-pages/${p.id}${n}.jpg`;
+  const page=document.createElement('figure');page.className='project-page';page.dataset.state='loading';
+  const frame=document.createElement('div');frame.className='project-page-frame';
+  const img=document.createElement('img');img.width=2400;img.height=864;img.alt=`${p.title}作品展示 · 第${n}页`;img.loading='eager';img.decoding='async';
+  const status=document.createElement('div');status.className='project-page-status';
+  const message=document.createElement('p');message.textContent=`正在加载第 ${n} 页…`;
+  const retry=document.createElement('button');retry.type='button';retry.textContent='重新加载';retry.hidden=true;retry.setAttribute('aria-label',`重新加载${p.title}第${n}页`);
+  status.append(message,retry);frame.append(img,status);
+  const caption=document.createElement('figcaption');const number=document.createElement('span');number.textContent=`${String(n).padStart(2,'0')} / ${String(p.count).padStart(2,'0')}`;
+  const fullSize=document.createElement('a');fullSize.href=source;fullSize.target='_blank';fullSize.rel='noopener';fullSize.textContent='查看大图 ↗';fullSize.setAttribute('aria-label',`查看${p.title}第${n}页大图`);
+  caption.append(number,fullSize);page.append(frame,caption);images.append(page);
+  img.addEventListener('load',()=>{page.dataset.state='ready';status.hidden=true;});
+  img.addEventListener('error',()=>{page.dataset.state='error';message.textContent='本页暂未加载成功，可重试或查看大图。';status.hidden=false;retry.hidden=false;});
+  retry.addEventListener('click',()=>{page.dataset.state='loading';message.textContent=`正在加载第 ${n} 页…`;retry.hidden=true;img.src=`${source}?retry=${Date.now()}`;});
+  img.src=source;
+ }
 }
 document.querySelector('#close-dialog').addEventListener('click',()=>dialog.close());
 document.querySelector('#close-end').addEventListener('click',()=>dialog.close());
